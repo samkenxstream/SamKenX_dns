@@ -15,7 +15,6 @@ package app
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -82,13 +81,19 @@ func getStubDomainStr(stubDomainMap map[string][]string, info *stubDomainInfo) s
 }
 
 func (c *CacheApp) updateCorefile(dnsConfig *config.Config) {
+	if err := dnsConfig.ValidateNodeLocalCacheConfig(); err != nil {
+		clog.Errorf("Invalid config: %v", err)
+		setupErrCount.WithLabelValues("configmap").Inc()
+		return
+	}
 	// construct part of the Corefile
-	baseConfig, err := ioutil.ReadFile(c.params.BaseCoreFile)
+	baseConfig, err := os.ReadFile(c.params.BaseCoreFile)
 	if err != nil {
 		clog.Errorf("Failed to read node-cache coreFile %s - %v", c.params.BaseCoreFile, err)
 		setupErrCount.WithLabelValues("configmap").Inc()
 		return
 	}
+
 	stubDomainStr := getStubDomainStr(dnsConfig.StubDomains, &stubDomainInfo{Port: c.params.LocalPort, CacheTTL: defaultTTL,
 		LocalIP: strings.Replace(c.params.LocalIPStr, ",", " ", -1)})
 	upstreamServers := strings.Join(dnsConfig.UpstreamNameservers, " ")
@@ -120,7 +125,7 @@ func (c *CacheApp) updateCorefile(dnsConfig *config.Config) {
 	newConfig := bytes.Buffer{}
 	newConfig.WriteString(string(baseConfig))
 	newConfig.WriteString(stubDomainStr)
-	if err := ioutil.WriteFile(c.params.CoreFile, newConfig.Bytes(), 0666); err != nil {
+	if err := os.WriteFile(c.params.CoreFile, newConfig.Bytes(), 0666); err != nil {
 		clog.Errorf("Failed to write config file %s - err %v", c.params.CoreFile, err)
 		setupErrCount.WithLabelValues("configmap").Inc()
 		return

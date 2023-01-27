@@ -29,8 +29,10 @@ export VERSION
 SRC_DIRS := cmd pkg
 
 ALL_ARCH := amd64 arm arm64 ppc64le s390x
-BASEIMAGE ?= k8s.gcr.io/build-image/debian-base-$(ARCH):bullseye-v1.2.0
-IPTIMAGE ?= k8s.gcr.io/build-image/debian-iptables-$(ARCH):bullseye-v1.3.0
+# Multiarch image
+# Uploaded: Jun 6, 2022, 7:19:10 PM
+BASEIMAGE ?= gcr.io/distroless/static-debian11@sha256:d6fa9db9548b5772860fecddb11d84f9ebd7e0321c0cb3c02870402680cc315f
+IPTIMAGE ?= gcr.io/gke-release/distroless-iptables:v0.1.2-gke.1
 
 # These rules MUST be expanded at reference time (hence '=') as BINARY
 # is dynamically scoped.
@@ -139,8 +141,9 @@ $(foreach BINARY,$(CONTAINER_BINARIES),$(eval $(DOCKERFILE_RULE)))
 define CONTAINER_RULE
 .$(BUILDSTAMP_NAME)-container: bin/$(ARCH)/$(BINARY)
 	@echo "container: bin/$(ARCH)/$(BINARY) ($(CONTAINER_NAME))"
-	@docker build					\
-		$(DOCKER_BUILD_FLAGS)			\
+	@docker buildx build					\
+		--platform linux/$(ARCH)			\
+		$(DOCKER_BUILD_FLAGS)				\
 		-t $(CONTAINER_NAME):$(VERSION)		\
 		-f .$(BINARY)-$(ARCH)-dockerfile .	\
 		$(VERBOSE_OUTPUT)

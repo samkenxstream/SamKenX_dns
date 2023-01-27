@@ -1,7 +1,7 @@
 # See https://cloud.google.com/cloud-build/docs/build-config
 
 # this must be specified in seconds. If omitted, defaults to 600s (10 mins)
-timeout: 7200s
+timeout: 10800s
 steps:
   - name: 'gcr.io/k8s-staging-test-infra/gcb-docker-gcloud:v20211118-2f2d816b90'
     entrypoint: bash
@@ -9,11 +9,13 @@ steps:
     - PROW_GIT_TAG=$_GIT_TAG
     - PULL_BASE_REF=$_PULL_BASE_REF
     - VERSION=$_PULL_BASE_REF
+    - HOME=/root  # for docker buildx
     args:
     - -c
     - |
       echo "Building/Pushing DNS containers"
-      make all-push
+      gcloud auth configure-docker \
+      && make all-push
 substitutions:
   # _GIT_TAG will be filled with a git-based tag for the image, of the form vYYYYMMDD-hash, and
   # can be used as a substitution

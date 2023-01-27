@@ -13,9 +13,9 @@
 # limitations under the License.
 
 VERSION ?= $(shell git describe --tags --always --dirty)
-REGISTRY ?= staging-k8s.gcr.io
+REGISTRY ?= gcr.io/k8s-staging-dns
 ARCH ?= amd64
-DNSMASQ_VERSION ?= dnsmasq-2.86
+DNSMASQ_VERSION ?= dnsmasq-2.88
 CONTAINER_PREFIX ?= k8s-dns
 
 ALL_ARCH := amd64 arm arm64 ppc64le s390x
@@ -27,9 +27,11 @@ OUTPUT_DIR := _output/$(ARCH)
 # Ensure that the docker command line supports the manifest images
 export DOCKER_CLI_EXPERIMENTAL=enabled
 
-BASEIMAGE ?= k8s.gcr.io/build-image/debian-base-$(ARCH):bullseye-v1.2.0
+# Multiarch image
+# Uploaded: Sep 19, 2022, 1:53:32 PM
+BASEIMAGE ?= gcr.io/distroless/base-debian11@sha256:c06bf48fa67dab06db6027109d3d802aa5b7d213c86a9eabc4d83f806d18ce1c
 ifeq ($(ARCH),amd64)
-	COMPILE_IMAGE := k8s.gcr.io/build-image/debian-base-$(ARCH):bullseye-v1.2.0
+	COMPILE_IMAGE := k8s.gcr.io/build-image/debian-base-$(ARCH):bullseye-v1.4.1
 else ifeq ($(ARCH),arm)
 	TRIPLE    ?= arm-linux-gnueabihf
 	QEMUARCH  := arm
@@ -50,14 +52,14 @@ DNSMASQ_URL := http://www.thekelleys.org.uk/dnsmasq/$(DNSMASQ_VERSION).tar.xz
 # SHA-256 computed from GPG-verified download:
 # $ gpg --recv 15CDDA6AE19135A2
 # ...
-# $ gpg --verify dnsmasq-2.86.tar.xz.asc dnsmasq-2.86.tar.xz
-# gpg: Signature made Wed 08 Sep 2021 09:50:46 PM UTC
+# $ gpg --verify dnsmasq-2.88.tar.xz.asc dnsmasq-2.88.tar.xz
+# gpg: Signature made Sun 04 Dec 2022 10:04:50 PM UTC
 # gpg:                using RSA key D6EACBD6EE46B834248D111215CDDA6AE19135A2
 # gpg: Good signature from "Simon Kelley <simon@thekelleys.org.uk>" [unknown]
 # gpg:                 aka "Simon Kelley <srk@debian.org>" [unknown]
 # ...
-# $ sha256sum dnsmasq-2.78.tar.xz
-DNSMASQ_SHA256 := 28d52cfc9e2004ac4f85274f52b32e1647b4dbc9761b82e7de1e41c49907eb08
+# $ sha256sum dnsmasq-2.88.tar.xz
+DNSMASQ_SHA256 := 23544deda10340c053bea6f15a93fed6ea7f5aaa85316bfc671ffa6d22fbc1b3
 DNSMASQ_ARCHIVE := $(OUTPUT_DIR)/dnsmasq.tar.xz
 
 MULTIARCH_CONTAINER := multiarch/qemu-user-static:register
@@ -163,7 +165,7 @@ containers: $(CONTAINER_STAMP)
 
 $(CONTAINER_STAMP): $(BINARY)
 	@echo "container:" $(REGISTRY)/$(IMAGE):$(VERSION)
-	@docker build --pull \
+	@docker buildx build --pull --load --platform linux/$(ARCH) \
 		-q -t $(REGISTRY)/$(IMAGE):$(VERSION) $(OUTPUT_DIR)/docker > $@
 
 .PHONY: test
